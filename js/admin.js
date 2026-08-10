@@ -48,9 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let inventory = [];
     let sales = [];
     let orders = [];
+    let categories = [];
     let businessConfig = { fixedCost: 0, profitMargin: 20 };
     
-    let unsubscribeProducts, unsubscribeInventory, unsubscribeSales, unsubscribeConfig, unsubscribeOrders;
+    let unsubscribeProducts, unsubscribeInventory, unsubscribeSales, unsubscribeConfig, unsubscribeOrders, unsubscribeCategories;
     let salesChart = null;
     let statsFilterValue = 'all'; 
 
@@ -132,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (unsubscribeSales) unsubscribeSales();
         if (unsubscribeConfig) unsubscribeConfig();
         if (unsubscribeOrders) unsubscribeOrders();
+        if (unsubscribeCategories) unsubscribeCategories();
     }
 
     // --- 2. Khởi tạo Bảng điều khiển Quản lý ---
@@ -202,6 +204,72 @@ document.addEventListener('DOMContentLoaded', () => {
             orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             renderOrdersList();
         }, (error) => console.error("Lỗi lắng nghe orders:", error));
+
+        // Lắng nghe Phân loại (Categories)
+        const categoriesQuery = query(collection(db, `stores/${storeId}/categories`));
+        unsubscribeCategories = onSnapshot(categoriesQuery, async (snapshot) => {
+            if (snapshot.empty) {
+                // Tự động seed 3 danh mục mặc định ban đầu nếu trống
+                const seedCategories = ['Lợn đất', 'Mèo thần tài', 'Khác'];
+                const batch = writeBatch(db);
+                seedCategories.forEach(name => {
+                    batch.set(doc(db, `stores/${storeId}/categories`, name), {
+                        name: name,
+                        createdAt: Timestamp.now()
+                    });
+                });
+                await batch.commit();
+                return;
+            }
+
+            categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            categories.sort((a, b) => a.createdAt.seconds - b.createdAt.seconds);
+            
+            updateCategoryDropdowns();
+            renderCategoryList();
+            renderAll(); 
+        }, (error) => console.error("Lỗi lắng nghe categories:", error));
+
+        // Khởi tạo upload ảnh
+        setupImageUpload('product-image-file', 'product-image-upload-btn', 'product-image-url', 'product-image-preview-container', 'product-image-preview');
+        setupImageUpload('edit-product-image-file', 'edit-product-image-upload-btn', 'edit-product-image-url', 'edit-product-image-preview-container', 'edit-product-image-preview');
+
+        // Sự kiện thêm danh mục mới
+        document.getElementById('add-category-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('category-name');
+            const feedbackEl = document.getElementById('category-feedback');
+            const categoryName = nameInput.value.trim();
+
+            feedbackEl.textContent = '';
+            if (!categoryName) return;
+
+            const isDuplicate = categories.some(c => c.name.toLowerCase() === categoryName.toLowerCase());
+            if (isDuplicate) {
+                feedbackEl.textContent = `Danh mục "${categoryName}" đã tồn tại.`;
+                feedbackEl.className = 'text-yellow-400 text-xs mt-1';
+                return;
+            }
+
+            const button = e.target.querySelector('button');
+            button.disabled = true;
+            try {
+                await setDoc(doc(db, `stores/${storeId}/categories`, categoryName), {
+                    name: categoryName,
+                    createdAt: Timestamp.now()
+                });
+                nameInput.value = '';
+                feedbackEl.textContent = 'Thêm thành công!';
+                feedbackEl.className = 'text-green-400 text-xs mt-1';
+                setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
+            } catch (error) {
+                console.error("Lỗi thêm danh mục:", error);
+                feedbackEl.textContent = 'Lỗi thêm danh mục.';
+                feedbackEl.className = 'text-red-400 text-xs mt-1';
+            } finally {
+                button.disabled = false;
+            }
+        });
 
         loader.classList.add('hidden');
         mainContent.classList.remove('hidden');
@@ -559,23 +627,70 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderProductList() {
         const container = document.getElementById('product-list-container');
         container.innerHTML = '';
+        
+        // Tự động phân loại các sản phẩm cũ chưa có phân loại
+        autoMigrateExistingData();
+
         if (products.length === 0) {
             container.innerHTML = '<p class="text-slate-400 text-center py-4">Chưa có sản phẩm nào.</p>';
         } else {
             products.forEach(p => {
                 const productEl = document.createElement('div');
-                productEl.className = 'flex items-center justify-between bg-slate-700/50 p-3 rounded-lg';
+                productEl.className = 'flex flex-col sm:flex-row sm:items-center justify-between bg-slate-700/40 p-4 rounded-xl border border-slate-700/60 shadow-sm gap-3';
+                
+                // Hiển thị ảnh nhỏ hoặc 🐷
+                const imageHtml = p.imageUrl ? 
+                    `<img src="${p.imageUrl}" alt="${p.name}" class="w-10 h-10 object-cover rounded-lg border border-slate-650">` : 
+                    `<span class="text-2xl bg-slate-850 w-10 h-10 rounded-lg flex items-center justify-center select-none">🐷</span>`;
+                
+                // Xây dựng danh sách phân loại để chuyển nhanh
+                let categoryOptions = '';
+                categories.forEach(cat => {
+                    categoryOptions += `<option value="${cat.name}" ${p.category === cat.name ? 'selected' : ''}>${cat.name}</option>`;
+                });
+
                 productEl.innerHTML = `
-                    <span class="font-medium text-white">${p.name}</span>
-                    <div class="flex gap-2">
-                        <button data-product-id="${p.id}" data-product-name="${p.name}" class="edit-btn p-2 text-slate-400 hover:text-cyan-400 transition-colors"><i data-lucide="file-pen-line" class="w-5 h-5"></i></button>
-                        <button data-product-id="${p.id}" data-product-name="${p.name}" class="delete-btn p-2 text-slate-400 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    <div class="flex items-center gap-3 flex-grow min-w-0">
+                        ${imageHtml}
+                        <div class="min-w-0">
+                            <span class="font-bold text-white text-sm block truncate" title="${p.name}">${p.name}</span>
+                            <span class="text-xs text-slate-400 block mt-0.5">Phân loại: <strong class="text-cyan-400">${p.category || 'Khác'}</strong></span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-3 justify-between sm:justify-end">
+                        <!-- Chọn phân loại nhanh -->
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold">Chuyển:</span>
+                            <select data-id="${p.id}" class="quick-category-select bg-slate-800 border border-slate-700 rounded text-xs px-2 py-1 text-slate-300 focus:outline-none focus:border-cyan-500">
+                                ${categoryOptions}
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center gap-1">
+                            <button data-product-id="${p.id}" class="edit-btn p-1.5 text-slate-400 hover:text-cyan-400 transition-colors" title="Sửa"><i data-lucide="file-pen-line" class="w-4 h-4"></i></button>
+                            <button data-product-id="${p.id}" data-product-name="${p.name}" class="delete-btn p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Xóa"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(productEl);
             });
         }
         lucide.createIcons();
+
+        // Gán sự kiện đổi phân loại nhanh
+        document.querySelectorAll('.quick-category-select').forEach(select => {
+            select.addEventListener('change', async (e) => {
+                const productId = e.target.dataset.id;
+                const newCategory = e.target.value;
+                try {
+                    await updateDoc(doc(db, `stores/${storeId}/products`, productId), { category: newCategory });
+                } catch (error) {
+                    console.error("Lỗi khi chuyển phân loại nhanh:", error);
+                    alert("Lỗi: Không thể cập nhật phân loại.");
+                }
+            });
+        });
     }
 
     function renderProductSelects() {
@@ -808,18 +923,32 @@ document.addEventListener('DOMContentLoaded', () => {
         calculateSuggestedPrice();
     }
 
-    // Sửa tên sản phẩm
+    // Sửa thông tin sản phẩm
     document.getElementById('product-list-container').addEventListener('click', (e) => {
         const editBtn = e.target.closest('.edit-btn');
         const deleteBtn = e.target.closest('.delete-btn');
 
         if (editBtn) {
             const productId = editBtn.dataset.productId;
-            const productName = editBtn.dataset.productName;
-            document.getElementById('edit-product-id').value = productId;
-            document.getElementById('edit-product-name').value = productName;
-            document.getElementById('edit-product-feedback').textContent = '';
-            editProductModal.classList.remove('hidden');
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('edit-product-id').value = productId;
+                document.getElementById('edit-product-name').value = product.name;
+                document.getElementById('edit-product-category-select').value = product.category || 'Khác';
+                document.getElementById('edit-product-image-url').value = product.imageUrl || '';
+                
+                const previewContainer = document.getElementById('edit-product-image-preview-container');
+                const previewImg = document.getElementById('edit-product-image-preview');
+                if (product.imageUrl) {
+                    previewImg.src = product.imageUrl;
+                    previewContainer.classList.remove('hidden');
+                } else {
+                    previewContainer.classList.add('hidden');
+                }
+                
+                document.getElementById('edit-product-feedback').textContent = '';
+                editProductModal.classList.remove('hidden');
+            }
         }
 
         if (deleteBtn) {
@@ -835,6 +964,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const productId = document.getElementById('edit-product-id').value;
         const newName = document.getElementById('edit-product-name').value.trim();
+        const newCategory = document.getElementById('edit-product-category-select').value;
+        const newImageUrl = document.getElementById('edit-product-image-url').value.trim();
         const feedbackEl = document.getElementById('edit-product-feedback');
         feedbackEl.textContent = '';
 
@@ -849,7 +980,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const productRef = doc(db, `stores/${storeId}/products`, productId);
-            await updateDoc(productRef, { name: newName });
+            await updateDoc(productRef, { 
+                name: newName,
+                category: newCategory,
+                imageUrl: newImageUrl
+            });
             editProductModal.classList.add('hidden');
         } catch (error) {
             console.error("Lỗi khi sửa sản phẩm:", error);
@@ -1421,4 +1556,272 @@ document.addEventListener('DOMContentLoaded', () => {
             button.disabled = false;
         }
     });
+
+    // --- LOGIC PHÂN LOẠI & UPLOAD ẢNH BỔ SUNG ---
+    
+    // Thêm sản phẩm mới kèm phân loại và ảnh
+    document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('product-name');
+        const categorySelect = document.getElementById('product-category-select');
+        const imageUrlInput = document.getElementById('product-image-url');
+        const feedbackEl = document.getElementById('product-feedback');
+        
+        const productName = nameInput.value.trim();
+        const productCategory = categorySelect.value;
+        const productImageUrl = imageUrlInput.value.trim();
+
+        feedbackEl.textContent = ''; 
+
+        if (!productName) return;
+        
+        const isDuplicate = products.some(p => p.name.toLowerCase() === productName.toLowerCase());
+        if (isDuplicate) {
+            feedbackEl.textContent = `Sản phẩm "${productName}" đã tồn tại.`;
+            feedbackEl.className = 'text-yellow-400 text-sm h-5';
+            return; 
+        }
+        
+        const button = e.target.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+            await addDoc(collection(db, `stores/${storeId}/products`), {
+                name: productName,
+                category: productCategory,
+                imageUrl: productImageUrl,
+                createdAt: Timestamp.now()
+            });
+            nameInput.value = '';
+            imageUrlInput.value = '';
+            document.getElementById('product-image-preview-container').classList.add('hidden');
+            feedbackEl.textContent = 'Thêm sản phẩm thành công!';
+            feedbackEl.className = 'text-green-400 text-sm h-5';
+            setTimeout(() => { feedbackEl.textContent = ''; }, 3000);
+        } catch (error) {
+            console.error("Lỗi thêm sản phẩm:", error);
+            feedbackEl.textContent = 'Lỗi: Không thể thêm sản phẩm.';
+            feedbackEl.className = 'text-red-400 text-sm h-5';
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    function updateCategoryDropdowns() {
+        const addSelect = document.getElementById('product-category-select');
+        const editSelect = document.getElementById('edit-product-category-select');
+        
+        if (!addSelect || !editSelect) return;
+
+        const currentAddVal = addSelect.value;
+        const currentEditVal = editSelect.value;
+
+        addSelect.innerHTML = '';
+        editSelect.innerHTML = '';
+
+        categories.forEach(cat => {
+            const opt1 = document.createElement('option');
+            opt1.value = cat.name;
+            opt1.textContent = cat.name;
+            addSelect.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = cat.name;
+            opt2.textContent = cat.name;
+            editSelect.appendChild(opt2);
+        });
+
+        // Khôi phục giá trị đã chọn trước đó nếu vẫn tồn tại
+        if (categories.some(c => c.name === currentAddVal)) {
+            addSelect.value = currentAddVal;
+        } else if (categories.length > 0) {
+            addSelect.value = categories[0].name;
+        }
+        
+        if (categories.some(c => c.name === currentEditVal)) {
+            editSelect.value = currentEditVal;
+        } else if (categories.length > 0) {
+            editSelect.value = categories[0].name;
+        }
+    }
+
+    function renderCategoryList() {
+        const container = document.getElementById('category-list-container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        if (categories.length === 0) {
+            container.innerHTML = '<p class="text-slate-400 text-xs py-2 text-center">Chưa có danh mục nào.</p>';
+            return;
+        }
+
+        categories.forEach(cat => {
+            const isProtected = ['Lợn đất', 'Mèo thần tài', 'Khác'].includes(cat.name);
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-700/50';
+            div.innerHTML = `
+                <span class="text-xs text-white font-medium">${cat.name}</span>
+                <div class="flex gap-1.5">
+                    ${!isProtected ? `
+                        <button class="edit-category-btn text-slate-400 hover:text-cyan-400 p-1" data-name="${cat.name}">
+                            <i data-lucide="file-pen-line" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button class="delete-category-btn text-slate-400 hover:text-red-500 p-1" data-name="${cat.name}">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    ` : '<span class="text-[10px] text-slate-500 px-1 py-0.5 select-none bg-slate-900 rounded font-semibold">Hệ thống</span>'}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+        lucide.createIcons();
+
+        // Gán sự kiện sửa/xóa danh mục
+        document.querySelectorAll('.edit-category-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const oldName = e.currentTarget.dataset.name;
+                const newName = prompt(`Nhập tên mới cho danh mục "${oldName}":`, oldName);
+                if (!newName || newName.trim() === oldName) return;
+
+                const cleanNewName = newName.trim();
+                const isDuplicate = categories.some(c => c.name.toLowerCase() === cleanNewName.toLowerCase());
+                if (isDuplicate) {
+                    alert(`Danh mục "${cleanNewName}" đã tồn tại!`);
+                    return;
+                }
+
+                // Tiến hành đổi tên bằng Batch
+                const batch = writeBatch(db);
+                // 1. Tạo danh mục mới
+                batch.set(doc(db, `stores/${storeId}/categories`, cleanNewName), {
+                    name: cleanNewName,
+                    createdAt: Timestamp.now()
+                });
+                // 2. Xóa danh mục cũ
+                batch.delete(doc(db, `stores/${storeId}/categories`, oldName));
+
+                // 3. Cập nhật tất cả sản phẩm thuộc danh mục cũ sang danh mục mới
+                const affectedProducts = products.filter(p => p.category === oldName);
+                affectedProducts.forEach(p => {
+                    batch.update(doc(db, `stores/${storeId}/products`, p.id), { category: cleanNewName });
+                });
+
+                try {
+                    await batch.commit();
+                    alert(`Đổi tên danh mục thành "${cleanNewName}" thành công!`);
+                } catch (error) {
+                    console.error("Lỗi đổi tên danh mục:", error);
+                    alert("Lỗi: Không thể đổi tên danh mục.");
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const name = e.currentTarget.dataset.name;
+                if (confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?\nTất cả sản phẩm thuộc danh mục này sẽ chuyển về danh mục "Khác".`)) {
+                    const batch = writeBatch(db);
+                    batch.delete(doc(db, `stores/${storeId}/categories`, name));
+
+                    const affectedProducts = products.filter(p => p.category === name);
+                    affectedProducts.forEach(p => {
+                        batch.update(doc(db, `stores/${storeId}/products`, p.id), { category: "Khác" });
+                    });
+
+                    try {
+                        await batch.commit();
+                        alert("Đã xóa danh mục và chuyển các sản phẩm liên quan sang 'Khác'.");
+                    } catch (error) {
+                        console.error("Lỗi xóa danh mục:", error);
+                        alert("Lỗi: Không thể xóa danh mục.");
+                    }
+                }
+            });
+        });
+    }
+
+    function setupImageUpload(fileInputId, buttonId, urlInputId, previewContainerId, previewImgId) {
+        const fileInput = document.getElementById(fileInputId);
+        const button = document.getElementById(buttonId);
+        const urlInput = document.getElementById(urlInputId);
+        const previewContainer = document.getElementById(previewContainerId);
+        const previewImg = document.getElementById(previewImgId);
+
+        if (!fileInput || !button) return;
+
+        button.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert("Vui lòng chọn tệp tin hình ảnh!");
+                return;
+            }
+
+            const originalBtnHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 text-white inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang tải...`;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                // Upload lên Imgbb sử dụng API Key mặc định của chúng ta
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=31d1d86dcf3519c72c21950d908ff95f`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Upload thất bại!");
+
+                const result = await response.json();
+                if (result.success) {
+                    const imageUrl = result.data.url;
+                    urlInput.value = imageUrl;
+                    
+                    if (previewImg) previewImg.src = imageUrl;
+                    if (previewContainer) previewContainer.classList.remove('hidden');
+                } else {
+                    throw new Error(result.error?.message || "Lỗi tải ảnh!");
+                }
+            } catch (err) {
+                console.error("Lỗi khi tải ảnh lên Imgbb:", err);
+                alert("Không thể tải ảnh lên Imgbb: " + err.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalBtnHtml;
+                fileInput.value = '';
+            }
+        });
+    }
+
+    async function autoMigrateExistingData() {
+        const batch = writeBatch(db);
+        let count = 0;
+        
+        products.forEach(p => {
+            if (!p.category) {
+                let categoryName = "Khác";
+                const cleanName = p.name.toLowerCase();
+                if (cleanName.includes("lợn") || cleanName.includes("heo")) {
+                    categoryName = "Lợn đất";
+                } else if (cleanName.includes("mèo")) {
+                    categoryName = "Mèo thần tài";
+                }
+                
+                batch.update(doc(db, `stores/${storeId}/products`, p.id), { category: categoryName });
+                count++;
+            }
+        });
+        
+        if (count > 0) {
+            try {
+                await batch.commit();
+                console.log(`Đã tự động phân loại ${count} sản phẩm cũ.`);
+            } catch(e) {
+                console.error("Lỗi tự động phân loại cũ:", e);
+            }
+        }
+    }
 });

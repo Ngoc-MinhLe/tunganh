@@ -303,15 +303,84 @@
                         
                         <!-- Sản Phẩm -->
                         <div id="products-tab" class="tab-pane hidden">
-                             <form id="add-product-form" class="flex items-center gap-4 mb-4">
-                                <input type="text" id="product-name" placeholder="Nhập tên sản phẩm mới..." class="flex-grow w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
-                                <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center disabled:bg-slate-500">
-                                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Thêm
-                                </button>
-                            </form>
-                            <p id="product-feedback" class="text-sm -mt-2 mb-4 h-5"></p>
-                            <div id="product-list-container" class="space-y-2 max-h-96 overflow-y-auto">
-                                <!-- Danh sách sản phẩm sẽ được chèn vào đây -->
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Cột Sản Phẩm (Lớn hơn) -->
+                                <div class="lg:col-span-2 space-y-6">
+                                    <!-- Form thêm sản phẩm mới -->
+                                    <form id="add-product-form" class="space-y-4 bg-slate-700/30 p-5 rounded-xl border border-slate-650 shadow-md">
+                                        <h4 class="text-sm font-bold text-slate-300 flex items-center gap-1">
+                                            <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i> Thêm Sản Phẩm Mới
+                                        </h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label for="product-name" class="text-xs text-slate-400">Tên sản phẩm</label>
+                                                <input type="text" id="product-name" placeholder="Nhập tên sản phẩm..." class="w-full mt-1 bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm" required>
+                                            </div>
+                                            <div>
+                                                <label for="product-category-select" class="text-xs text-slate-400">Phân loại danh mục</label>
+                                                <select id="product-category-select" class="w-full mt-1 bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm" required>
+                                                    <!-- Option categories populated dynamically by JS -->
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs text-slate-400">Hình ảnh sản phẩm</label>
+                                            <div class="flex gap-2 mt-1">
+                                                <input type="text" id="product-image-url" placeholder="Nhập URL ảnh hoặc nhấn nút tải lên..." class="flex-grow bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm">
+                                                <button type="button" id="product-image-upload-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
+                                                    <i data-lucide="image-plus" class="w-3.5 h-3.5"></i> Chọn & Tải Ảnh
+                                                </button>
+                                                <input type="file" id="product-image-file" class="hidden" accept="image/*">
+                                            </div>
+                                            <!-- Xem trước ảnh -->
+                                            <div id="product-image-preview-container" class="mt-2 hidden flex items-center gap-2">
+                                                <img id="product-image-preview" src="" alt="Preview" class="w-12 h-12 object-cover rounded border border-slate-600">
+                                                <span class="text-xs text-slate-400">Đã tải ảnh lên Imgbb!</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-end">
+                                            <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center gap-1">
+                                                <i data-lucide="plus" class="w-4 h-4"></i> Thêm Sản Phẩm
+                                            </button>
+                                        </div>
+                                    </form>
+                                    
+                                    <!-- Danh sách sản phẩm -->
+                                    <div>
+                                        <h4 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-1">
+                                            <i data-lucide="list" class="w-4 h-4 text-cyan-400"></i> Danh Sách Sản Phẩm
+                                        </h4>
+                                        <p id="product-feedback" class="text-sm -mt-2 mb-3 h-5"></p>
+                                        <div id="product-list-container" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                                            <!-- Danh sách sản phẩm sẽ được chèn vào đây -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cột Danh Mục (Nhỏ hơn) -->
+                                <div class="lg:col-span-1 bg-slate-700/20 p-5 rounded-xl border border-slate-650 h-fit space-y-4">
+                                    <h4 class="text-sm font-bold text-white flex items-center gap-1.5 border-b border-slate-700 pb-2">
+                                        <i data-lucide="tags" class="text-cyan-400 w-4.5 h-4.5"></i> Quản Lý Danh Mục Phân Loại
+                                    </h4>
+                                    <!-- Form thêm danh mục mới -->
+                                    <form id="add-category-form" class="space-y-3">
+                                        <div>
+                                            <label for="category-name" class="text-xs text-slate-400">Tên danh mục mới</label>
+                                            <input type="text" id="category-name" placeholder="VD: Mèo thần tài, Lợn đất..." class="w-full mt-1 bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm" required>
+                                        </div>
+                                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center gap-1">
+                                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm Danh Mục
+                                        </button>
+                                    </form>
+                                    <p id="category-feedback" class="text-xs h-4"></p>
+                                    <!-- Danh sách các danh mục hiện có -->
+                                    <div class="space-y-2">
+                                        <span class="text-xs text-slate-400 block border-b border-slate-700/50 pb-1">Các danh mục hiện có:</span>
+                                        <div id="category-list-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                            <!-- Danh mục load từ JS -->
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         

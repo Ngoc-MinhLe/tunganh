@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let products = [];
     let inventory = [];
+    let categories = [];
     let businessConfig = { fixedCost: 0, profitMargin: 20 };
     let computedProducts = {}; // Bảng lưu thông tin chi tiết của SP sau khi tính giá/kho: { productId: { name, stock, price } }
 
@@ -53,7 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let productsLoaded = false;
     let inventoryLoaded = false;
     let configLoaded = false;
+    let categoriesLoaded = false;
     let listenersStarted = false;
+    let activeCategory = 'all'; 
 
     // --- DOM Elements ---
     const shopLoader = document.getElementById('shop-loader');
@@ -240,8 +243,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Tải Sản Phẩm từ Firestore ---
 
     function checkAllLoaded() {
-        if (productsLoaded && inventoryLoaded && configLoaded) {
+        if (productsLoaded && inventoryLoaded && configLoaded && categoriesLoaded) {
             computeStorefrontProducts();
+            renderCategoryFilters();
             shopLoader.classList.add('hidden');
             shopContent.classList.remove('hidden');
         }
@@ -276,6 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
             configLoaded = true;
             checkAllLoaded();
         }, (error) => console.error("Lỗi cấu hình business:", error));
+
+        // 4. Lắng nghe categories
+        onSnapshot(collection(db, `stores/${storeId}/categories`), (snapshot) => {
+            categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            categories.sort((a,b) => a.createdAt.seconds - b.createdAt.seconds);
+            categoriesLoaded = true;
+            checkAllLoaded();
+        }, (error) => console.error("Lỗi lắng nghe categories:", error));
     }
 
     // Tính giá bán lẻ & tổng số lượng tồn kho từng SP
@@ -294,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const averageCost = totalValue / totalStock;
                 retailPrice = Math.round(averageCost * (1 + ((businessConfig.profitMargin || 20) / 100)));
             } else {
-                // Nếu chưa từng nhập kho hoặc hết sạch hàng
                 // Lấy giá nhập từ lô hàng cũ nhất đã bán hết nếu có
                 const oldBatches = inventory.filter(item => item.productId === prod.id);
                 if (oldBatches.length > 0) {
@@ -308,6 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
             computedProducts[prod.id] = {
                 id: prod.id,
                 name: prod.name,
+                category: prod.category || 'Khác',
+                imageUrl: prod.imageUrl || '',
                 stock: totalStock,
                 price: retailPrice
             };
@@ -319,10 +332,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render lưới sản phẩm
     function renderProductGrid() {
         productGrid.innerHTML = '';
-        const items = Object.values(computedProducts);
+        let items = Object.values(computedProducts);
         
+        // Lọc sản phẩm theo phân loại được chọn
+        if (activeCategory !== 'all') {
+            items = items.filter(p => p.category === activeCategory);
+        }
+
         if (items.length === 0) {
-            productGrid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-12">Chưa có sản phẩm nào được bày bán.</div>';
+            productGrid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-12">Không có sản phẩm nào thuộc phân loại này.</div>';
             return;
         }
 
@@ -333,10 +351,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const isOutOfStock = prod.stock <= 0;
             const priceDisplay = prod.price > 0 ? formatCurrency(prod.price) : 'Liên hệ';
 
+            // Ảnh thực tế hoặc icon 🐷 mặc định
+            const imageHtml = prod.imageUrl ? 
+                `<img src="${prod.imageUrl}" alt="${prod.name}" class="w-full h-full object-cover select-none">` : 
+                `<span class="text-7xl select-none">🐷</span>`;
+
             card.innerHTML = `
-                <!-- Hình ảnh placeholder sản phẩm -->
-                <div class="relative bg-slate-700/50 aspect-square flex items-center justify-center p-6 text-slate-500">
-                    <span class="text-7xl">🐷</span>
+                <!-- Hình ảnh sản phẩm -->
+                <div class="relative bg-slate-700/50 aspect-square flex items-center justify-center overflow-hidden">
+                    ${imageHtml}
                     ${isOutOfStock ? `
                         <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
                             <span class="bg-red-600 text-white font-bold text-xs uppercase py-1 px-3 rounded-full">Hết hàng</span>
@@ -368,6 +391,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 const productId = e.currentTarget.dataset.id;
                 addToCart(productId);
             });
+        });
+    }
+
+    // Vẽ thanh bộ lọc danh mục
+    function renderCategoryFilters() {
+        const container = document.getElementById('category-filters-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Nút lọc "Tất cả" mặc định
+        const allBtn = document.createElement('button');
+        allBtn.className = `px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+            activeCategory === 'all' 
+                ? 'bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
+                : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+        }`;
+        allBtn.textContent = 'Tất cả';
+        allBtn.addEventListener('click', () => {
+            activeCategory = 'all';
+            renderCategoryFilters();
+            renderProductGrid();
+        });
+        container.appendChild(allBtn);
+
+        // Nút lọc cho các danh mục load động từ Firestore
+        categories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = `px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                activeCategory === cat.name 
+                    ? 'bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-500/20' 
+                    : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+            }`;
+            btn.textContent = cat.name;
+            btn.addEventListener('click', () => {
+                activeCategory = cat.name;
+                renderCategoryFilters();
+                renderProductGrid();
+            });
+            container.appendChild(btn);
         });
     }
 
