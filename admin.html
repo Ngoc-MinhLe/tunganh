@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản trị Cửa hàng Lợn đất Tùng Anh</title>
+    <!-- Tải Tailwind CSS để làm đẹp giao diện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải thư viện icon Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tải thư viện Chart.js để vẽ biểu đồ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- CSS tùy chỉnh bổ sung -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+
+    <!-- 1. Màn hình Đăng Nhập Quản Trị (Mặc định hiển thị nếu chưa đăng nhập) -->
+    <div id="admin-login-container" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4 border border-slate-700">
+            <div class="text-center mb-6">
+                <span class="text-4xl block mb-2">🔐</span>
+                <h2 class="text-2xl font-bold text-white">Đăng Nhập Quản Trị</h2>
+                <p class="text-slate-400 text-xs mt-1">Truy cập bảng điều khiển hệ thống cửa hàng</p>
+            </div>
+            
+            <form id="admin-login-form" class="space-y-4">
+                <div>
+                    <label for="admin-email" class="text-sm text-slate-400">Email quản trị viên</label>
+                    <input type="email" id="admin-email" placeholder="ví dụ: admin@gmail.com" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                </div>
+                <div>
+                    <label for="admin-password" class="text-sm text-slate-400">Mật khẩu</label>
+                    <input type="password" id="admin-password" placeholder="Nhập mật khẩu..." class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                </div>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i> Xác Nhận
+                </button>
+            </form>
+            <div class="mt-6 text-center text-xs text-slate-500 bg-slate-850 p-4 rounded-lg border border-slate-750">
+                <p class="font-medium text-amber-500/80 mb-1">💡 Hướng dẫn khởi tạo tài khoản:</p>
+                <p>Bật Email/Password trong Firebase Auth Console, tạo người dùng <code class="text-slate-300 font-mono">admin@gmail.com</code> để đăng nhập.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Bảng Điều Khiển Quản Trị (Ẩn mặc định, hiển thị khi đăng nhập thành công) -->
+    <div id="admin-dashboard-container" class="hidden min-h-screen p-4 sm:p-6 lg:p-8">
+        
+        <!-- Modal để Sửa tên sản phẩm -->
+        <div id="edit-product-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
+                <h2 class="text-2xl font-bold text-white mb-4">Sửa Tên Sản Phẩm</h2>
+                <form id="edit-product-form">
+                    <input type="hidden" id="edit-product-id">
+                    <input type="text" id="edit-product-name" class="w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                    <p id="edit-product-feedback" class="text-sm mt-2 h-5"></p>
+                    <div class="flex gap-4 mt-4">
+                        <button type="button" id="cancel-edit-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Lưu Thay Đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal để Sửa lô hàng nhập -->
+        <div id="edit-inventory-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
+                <h2 class="text-2xl font-bold text-white mb-4">Sửa Chi Tiết Lô Hàng</h2>
+                <form id="edit-inventory-form">
+                    <input type="hidden" id="edit-inventory-id">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="edit-inventory-quantity" class="text-sm text-slate-400">Số lượng nhập ban đầu</label>
+                            <input type="number" id="edit-inventory-quantity" min="1" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label for="edit-inventory-price" class="text-sm text-slate-400">Giá nhập / SP</label>
+                            <input type="number" id="edit-inventory-price" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label for="edit-inventory-date" class="text-sm text-slate-400">Ngày nhập</label>
+                            <input type="date" id="edit-inventory-date" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                    </div>
+                    <p id="edit-inventory-feedback" class="text-sm mt-2 h-5"></p>
+                    <div class="flex gap-4 mt-4">
+                        <button type="button" id="cancel-edit-inventory-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Lưu Thay Đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal để Xác nhận Xóa sản phẩm -->
+        <div id="delete-product-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">Xác Nhận Xóa Sản Phẩm</h2>
+                <p class="text-slate-300 mb-6">Bạn có chắc chắn muốn xóa sản phẩm <strong id="delete-product-name" class="text-white"></strong>? <br><br><span class="text-yellow-400">Cảnh báo: Toàn bộ dữ liệu nhập kho và bán hàng liên quan đến sản phẩm này cũng sẽ bị xóa vĩnh viễn.</span></p>
+                <div class="flex gap-4 mt-4">
+                    <button type="button" id="cancel-delete-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
+                    <button type="button" id="confirm-delete-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Xóa Vĩnh Viễn</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal để Sửa Đơn Hàng -->
+        <div id="edit-sale-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-lg mx-4">
+                <h2 class="text-2xl font-bold text-white mb-4">Sửa Đơn Hàng</h2>
+                <form id="edit-sale-form">
+                    <input type="hidden" id="edit-sale-id">
+                    <p class="text-slate-300 mb-4">Sản phẩm: <strong id="edit-sale-product-name" class="text-white"></strong></p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="edit-sale-quantity" class="text-sm text-slate-400">Số lượng</label>
+                            <input type="number" id="edit-sale-quantity" min="1" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label for="edit-sale-price" class="text-sm text-slate-400">Giá bán / SP</label>
+                            <input type="number" id="edit-sale-price" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                        <div>
+                            <label for="edit-sale-date" class="text-sm text-slate-400">Ngày bán</label>
+                            <input type="date" id="edit-sale-date" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                        </div>
+                    </div>
+                    <p id="edit-sale-feedback" class="text-sm mt-2 h-5"></p>
+                    <div class="flex gap-4 mt-4">
+                        <button type="button" id="cancel-edit-sale-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Lưu Thay Đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal để Xác nhận Xóa Đơn Hàng -->
+        <div id="delete-sale-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">Xác Nhận Xóa Đơn Hàng</h2>
+                <p class="text-slate-300 mb-6">Bạn có chắc chắn muốn xóa đơn hàng này? <br><br><span class="text-yellow-400">Hành động này sẽ hoàn trả lại số lượng hàng đã bán vào kho.</span></p>
+                <div class="flex gap-4 mt-4">
+                    <button type="button" id="cancel-delete-sale-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
+                    <button type="button" id="confirm-delete-sale-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Xóa Đơn Hàng</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto">
+            <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold text-white">Hệ Thống Quản Trị Cửa Hàng</h1>
+                    <p class="text-slate-400 mt-2">Dữ liệu cửa hàng: Mèo thần tài Lợn đất</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="index.html" class="bg-slate-800 hover:bg-slate-700 border border-slate-750 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1 transition-colors">
+                        <i data-lucide="eye" class="w-4 h-4"></i> Xem cửa hàng
+                    </a>
+                    <button id="admin-logout-btn" class="bg-red-950/40 hover:bg-red-900/40 border border-red-500/20 text-red-400 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1 transition-colors">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> Đăng xuất
+                    </button>
+                </div>
+            </header>
+
+            <!-- Loading Spinner inside Dashboard -->
+            <div id="loader" class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <svg class="animate-spin h-10 w-10 text-cyan-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-4 text-lg">Đang kết nối tới dữ liệu Firestore...</p>
+                </div>
+            </div>
+
+            <!-- Main Content (hidden until loaded) -->
+            <main id="main-content" class="hidden">
+                <!-- Bảng điều khiển thống kê -->
+                <div class="flex justify-end items-center gap-4 mb-4">
+                    <label for="stats-month-picker" class="text-sm text-slate-400 whitespace-nowrap">Thống kê tháng:</label>
+                    <input type="month" id="stats-month-picker" class="bg-slate-700 text-white p-2 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                    <button id="stats-all-time-btn" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Xem Toàn Thời Gian</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-slate-800 p-6 rounded-xl shadow-lg"><p class="text-lg font-medium text-slate-400">Tổng Doanh thu</p><h3 id="stats-revenue" class="text-3xl font-bold text-white mt-2">0 ₫</h3></div>
+                    <div class="bg-slate-800 p-6 rounded-xl shadow-lg"><p class="text-lg font-medium text-slate-400">Lợi nhuận Gộp</p><h3 id="stats-profit" class="text-3xl font-bold text-white mt-2">0 ₫</h3></div>
+                    <div class="bg-slate-800 p-6 rounded-xl shadow-lg"><p id="net-profit-label" class="text-lg font-medium text-slate-400">Lợi nhuận Ròng (Ước tính)</p><h3 id="stats-net-profit" class="text-3xl font-bold text-white mt-2">0 ₫</h3></div>
+                    <div class="bg-slate-800 p-6 rounded-xl shadow-lg"><p class="text-lg font-medium text-slate-400">Giá trị Tồn kho</p><h3 id="stats-inventory-value" class="text-3xl font-bold text-white mt-2">0 ₫</h3></div>
+                </div>
+
+                <!-- Khu vực Menu và Nội dung -->
+                <div class="bg-slate-800 rounded-xl shadow-lg mb-8">
+                    <!-- Menu Tabs -->
+                    <div id="main-tabs" class="flex border-b border-slate-700 px-2 flex-wrap">
+                        <button data-tab="orders" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="clipboard-list" class="w-5 h-5"></i> Đơn Đặt Hàng
+                        </button>
+                        <button data-tab="sales" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="shopping-cart" class="w-5 h-5"></i> Bán Tại Quầy
+                        </button>
+                        <button data-tab="inventory" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="inbox" class="w-5 h-5"></i> Nhập Kho
+                        </button>
+                        <button data-tab="products" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="package" class="w-5 h-5"></i> Sản Phẩm
+                        </button>
+                        <button data-tab="reports" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Báo cáo doanh số
+                        </button>
+                        <button data-tab="settings" class="tab-btn flex items-center gap-2 py-4 px-4 text-sm font-medium border-b-2 transition-colors">
+                            <i data-lucide="settings" class="w-5 h-5"></i> Thiết Lập
+                        </button>
+                    </div>
+                    <!-- Nội dung Tabs -->
+                    <div id="tab-content" class="p-6">
+                        <!-- Đơn Hàng (Mới) -->
+                        <div id="orders-tab" class="tab-pane">
+                            <h3 class="text-lg font-bold text-white mb-4">Danh Sách Đơn Đặt Hàng Trực Tuyến</h3>
+                            <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2" id="orders-list-container">
+                                <!-- Danh sách đơn hàng từ khách hàng được chèn qua JS -->
+                            </div>
+                        </div>
+
+                        <!-- Bán Tại Quầy (Bán Hàng cũ) -->
+                        <div id="sales-tab" class="tab-pane hidden">
+                             <form id="add-sale-form">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="md:col-span-1 relative">
+                                         <label for="sale-product-search" class="text-sm text-slate-400">Sản phẩm</label>
+                                         <div class="relative mt-1">
+                                             <input type="text" id="sale-product-search" placeholder="Gõ để tìm sản phẩm..." class="w-full bg-slate-700 text-white p-3 pr-10 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" autocomplete="off">
+                                             <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                 <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400"></i>
+                                             </div>
+                                         </div>
+                                         <ul id="sale-product-dropdown" class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                             <!-- Dropdown items will be inserted here -->
+                                         </ul>
+                                         <input type="hidden" id="sale-product-select">
+                                    </div>
+                                    <div class="md:col-span-3 grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label for="sale-quantity" class="text-sm text-slate-400">Số lượng (Tồn: <span id="sale-available-stock" class="font-bold text-white">0</span>)</label>
+                                            <input type="number" id="sale-quantity" placeholder="Số lượng" min="1" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                        </div>
+                                         <div>
+                                            <label for="sale-price" class="text-sm text-slate-400">Giá bán / SP</label>
+                                            <input type="number" id="sale-price" placeholder="Giá bán" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                        </div>
+                                        <div>
+                                            <label for="sale-date" class="text-sm text-slate-400">Ngày bán</label>
+                                            <input type="date" id="sale-date" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="sale-suggestion-container" class="mt-2 text-center text-sm text-slate-300">
+                                    <span class="mr-4">Bình quân giá nhập: <strong id="average-cost-display" class="text-amber-400">---</strong></span>
+                                    <span>Giá gợi ý / SP: <strong id="suggested-price" class="text-cyan-400">---</strong></span>
+                                </div>
+                                <div id="sale-out-of-stock-msg" class="mt-2 text-center text-sm text-red-500 font-bold hidden">
+                                    Sản phẩm này đã hết hàng!
+                                </div>
+                                <button type="submit" class="mt-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center disabled:bg-slate-500">
+                                    <i data-lucide="dollar-sign" class="w-5 h-5 mr-2"></i>Tạo Đơn Giao Quầy
+                                </button>
+                                <p id="sale-feedback" class="text-sm mt-2 h-5"></p>
+                             </form>
+                        </div>
+                        
+                        <!-- Nhập Kho -->
+                        <div id="inventory-tab" class="tab-pane hidden">
+                             <form id="add-inventory-form">
+                                <div class="relative mb-4">
+                                     <label for="inventory-product-search" class="text-sm text-slate-400">Sản phẩm</label>
+                                     <div class="relative mt-1">
+                                         <input type="text" id="inventory-product-search" placeholder="Gõ để tìm sản phẩm..." class="w-full bg-slate-700 text-white p-3 pr-10 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" autocomplete="off">
+                                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                             <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400"></i>
+                                         </div>
+                                     </div>
+                                     <ul id="inventory-product-dropdown" class="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                                         <!-- Dropdown items will be inserted here -->
+                                     </ul>
+                                     <input type="hidden" id="inventory-product-select">
+                                </div>
+                                <input type="number" id="inventory-quantity" placeholder="Số lượng nhập" min="1" class="w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 mb-4 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label for="inventory-price" class="text-sm text-slate-400">Giá nhập / SP</label>
+                                        <input type="number" id="inventory-price" placeholder="Giá nhập" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                    </div>
+                                    <div>
+                                        <label for="inventory-date" class="text-sm text-slate-400">Ngày nhập</label>
+                                        <input type="date" id="inventory-date" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center disabled:bg-slate-500">
+                                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Nhập Kho
+                                </button>
+                                <p id="inventory-warning" class="text-yellow-400 text-sm mt-2 hidden">Vui lòng thêm sản phẩm trước khi nhập kho.</p>
+                             </form>
+                        </div>
+                        
+                        <!-- Sản Phẩm -->
+                        <div id="products-tab" class="tab-pane hidden">
+                             <form id="add-product-form" class="flex items-center gap-4 mb-4">
+                                <input type="text" id="product-name" placeholder="Nhập tên sản phẩm mới..." class="flex-grow w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
+                                <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 flex items-center justify-center disabled:bg-slate-500">
+                                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>Thêm
+                                </button>
+                            </form>
+                            <p id="product-feedback" class="text-sm -mt-2 mb-4 h-5"></p>
+                            <div id="product-list-container" class="space-y-2 max-h-96 overflow-y-auto">
+                                <!-- Danh sách sản phẩm sẽ được chèn vào đây -->
+                            </div>
+                        </div>
+                        
+                        <!-- Báo cáo -->
+                        <div id="reports-tab" class="tab-pane hidden">
+                            <div class="flex flex-wrap items-center gap-4 mb-6">
+                                <div class="flex-grow">
+                                    <label class="text-sm text-slate-400">Lọc theo khoảng ngày</label>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <input type="date" id="report-start-date" class="bg-slate-700 text-white p-2 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                        <span>-</span>
+                                        <input type="date" id="report-end-date" class="bg-slate-700 text-white p-2 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    </div>
+                                </div>
+                                <div id="month-filter-container" class="flex gap-2 flex-wrap">
+                                    <!-- Nút lọc theo tháng sẽ được chèn vào đây -->
+                                </div>
+                                <button id="export-report-btn" class="bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded-lg transition-colors flex items-center gap-2">
+                                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Xuất Báo cáo
+                                </button>
+                            </div>
+                             <div class="bg-slate-700/50 p-4 rounded-lg mb-6 text-center">
+                                <span class="text-slate-400">Tổng lợi nhuận trong khoảng thời gian đã chọn:</span>
+                                <strong id="filtered-profit-display" class="text-2xl ml-2 text-green-400">0 ₫</strong>
+                            </div>
+                            <div class="bg-slate-700/50 p-4 rounded-lg mb-6">
+                                <canvas id="sales-chart"></canvas>
+                            </div>
+                            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                                <div class="xl:col-span-2 max-h-[600px] overflow-y-auto">
+                                    <h4 class="font-semibold text-lg text-white mb-3">Lịch sử Bán hàng (Chi tiết)</h4>
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="text-slate-400 sticky top-0 bg-slate-800">
+                                            <tr>
+                                                <th class="p-2 font-normal">Ngày bán</th>
+                                                <th class="p-2 font-normal">Sản phẩm</th>
+                                                <th class="p-2 font-normal text-right">SL</th>
+                                                <th class="p-2 font-normal text-right">Giá vốn/SP</th>
+                                                <th class="p-2 font-normal text-right">Giá bán/SP</th>
+                                                <th class="p-2 font-normal text-right">Lợi nhuận</th>
+                                                <th class="p-2 font-normal text-center">Hành động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sales-details-container">
+                                            <!-- Dữ liệu bán hàng sẽ được chèn vào đây -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="bg-slate-700/50 p-4 rounded-lg xl:col-span-1">
+                                    <h4 class="font-semibold text-lg text-white mb-3 text-center">Lợi nhuận theo ngày</h4>
+                                    <div class="max-h-[550px] overflow-y-auto">
+                                        <table class="w-full text-left text-sm">
+                                            <thead class="text-slate-400 sticky top-0 bg-slate-700/50">
+                                                 <tr>
+                                                    <th class="p-2 font-normal">Ngày</th>
+                                                    <th class="p-2 font-normal text-right">Tổng Lợi nhuận</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="daily-profit-container">
+                                                <!-- Dữ liệu lợi nhuận ngày sẽ được chèn vào đây -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Thiết Lập -->
+                        <div id="settings-tab" class="tab-pane hidden">
+                            <form id="settings-form" class="space-y-4 max-w-lg mx-auto">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="setting-fixed-cost" class="text-sm text-slate-400">Chi phí cố định / tháng</label>
+                                        <input type="number" id="setting-fixed-cost" placeholder="VD: 10,000,000" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label for="setting-profit-margin" class="text-sm text-slate-400">Lợi nhuận mong muốn (%)</label>
+                                        <input type="number" id="setting-profit-margin" placeholder="VD: 30" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">Lưu Thiết Lập</button>
+                                <p id="settings-feedback" class="text-sm text-center h-5"></p>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chi tiết Tồn kho -->
+                <div class="bg-slate-800 p-6 rounded-xl shadow-lg col-span-1 lg:col-span-2">
+                    <h3 class="text-xl font-semibold text-white mb-4 flex items-center"><i data-lucide="archive" class="w-5 h-5 mr-2"></i>Chi tiết Tồn kho</h3>
+                    <div id="inventory-details-container" class="space-y-6 max-h-[600px] overflow-y-auto">
+                        <!-- Dữ liệu sẽ được chèn vào đây bởi JavaScript -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Firebase và Logic Quản Trị của ứng dụng -->
+    <script type="module" src="js/admin.js"></script>
+
+</body>
+</html>
