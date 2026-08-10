@@ -47,9 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let products = [];
     let inventory = [];
     let sales = [];
-    let orders = [];
+    let orders = []; 
     let categories = [];
-    let businessConfig = { fixedCost: 0, profitMargin: 20 };
+    let businessConfig = { fixedCost: 0, profitMargin: 20, storeAddress: '', storePhone: '' };
     
     let unsubscribeProducts, unsubscribeInventory, unsubscribeSales, unsubscribeConfig, unsubscribeOrders, unsubscribeCategories;
     let salesChart = null;
@@ -175,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('setting-fixed-cost').value = businessConfig.fixedCost || '';
                 document.getElementById('setting-profit-margin').value = businessConfig.profitMargin || '';
                 document.getElementById('setting-imgbb-key').value = businessConfig.imgbbApiKey || '';
+                document.getElementById('setting-store-address').value = businessConfig.storeAddress || '';
+                document.getElementById('setting-store-phone').value = businessConfig.storePhone || '';
             }
             updateStats();
             calculateSuggestedPrice();
@@ -1153,7 +1155,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const newConfig = {
             fixedCost: Number(document.getElementById('setting-fixed-cost').value) || 0,
             profitMargin: Number(document.getElementById('setting-profit-margin').value) || 0,
-            imgbbApiKey: document.getElementById('setting-imgbb-key').value.trim()
+            imgbbApiKey: document.getElementById('setting-imgbb-key').value.trim(),
+            storeAddress: document.getElementById('setting-store-address').value.trim(),
+            storePhone: document.getElementById('setting-store-phone').value.trim()
         };
         
         try {

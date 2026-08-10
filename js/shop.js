@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let products = [];
     let inventory = [];
     let categories = [];
-    let businessConfig = { fixedCost: 0, profitMargin: 20 };
+    let businessConfig = { fixedCost: 0, profitMargin: 20, storeAddress: '', storePhone: '' };
     let computedProducts = {}; // Bảng lưu thông tin chi tiết của SP sau khi tính giá/kho: { productId: { name, stock, price } }
 
     let cart = [];
@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCategoryFilters();
             shopLoader.classList.add('hidden');
             shopContent.classList.remove('hidden');
+            updateStoreContactInfo();
         }
     }
 
@@ -431,6 +432,30 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             container.appendChild(btn);
         });
+    }
+
+    // Cập nhật thông tin liên hệ của cửa hàng
+    function updateStoreContactInfo() {
+        const container = document.getElementById('store-contact-info-container');
+        if (container) {
+            container.innerHTML = ''; // Xóa nội dung cũ
+
+            if (businessConfig.storeAddress) {
+                container.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-slate-400"></i>
+                        <span>${businessConfig.storeAddress}</span>
+                    </div>`;
+            }
+            if (businessConfig.storePhone) {
+                container.innerHTML += `
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="phone" class="w-4 h-4 text-slate-400"></i>
+                        <span>SĐT: ${businessConfig.storePhone}</span>
+                    </div>`;
+            }
+            lucide.createIcons();
+        }
     }
 
     // --- Nghiệp Vụ Giỏ Hàng ---
