@@ -49,15 +49,46 @@
         
         <!-- Modal để Sửa tên sản phẩm -->
         <div id="edit-product-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
-            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md mx-4">
-                <h2 class="text-2xl font-bold text-white mb-4">Sửa Tên Sản Phẩm</h2>
-                <form id="edit-product-form">
+            <div class="bg-slate-800 p-6 rounded-xl shadow-2xl w-full max-w-md mx-4 border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-1">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-cyan-400"></i> Chỉnh Sửa Sản Phẩm
+                </h2>
+                <form id="edit-product-form" class="space-y-4">
                     <input type="hidden" id="edit-product-id">
-                    <input type="text" id="edit-product-name" class="w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none" required>
-                    <p id="edit-product-feedback" class="text-sm mt-2 h-5"></p>
-                    <div class="flex gap-4 mt-4">
-                        <button type="button" id="cancel-edit-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Hủy</button>
-                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Lưu Thay Đổi</button>
+                    
+                    <div>
+                        <label for="edit-product-name" class="text-xs text-slate-400">Tên sản phẩm</label>
+                        <input type="text" id="edit-product-name" class="w-full mt-1 bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm" required>
+                    </div>
+                    
+                    <div>
+                        <label for="edit-product-category-select" class="text-xs text-slate-400">Phân loại danh mục</label>
+                        <select id="edit-product-category-select" class="w-full mt-1 bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm" required>
+                            <!-- Option categories populated dynamically by JS -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400">Hình ảnh sản phẩm</label>
+                        <div class="flex gap-2 mt-1">
+                            <input type="text" id="edit-product-image-url" placeholder="Nhập URL ảnh hoặc nhấn nút tải lên..." class="flex-grow bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm">
+                            <button type="button" id="edit-product-image-upload-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
+                                <i data-lucide="image-plus" class="w-3.5 h-3.5"></i> Tải Lên
+                            </button>
+                            <input type="file" id="edit-product-image-file" class="hidden" accept="image/*">
+                        </div>
+                        <!-- Xem trước ảnh -->
+                        <div id="edit-product-image-preview-container" class="mt-2 hidden flex items-center gap-2">
+                            <img id="edit-product-image-preview" src="" alt="Preview" class="w-12 h-12 object-cover rounded border border-slate-600">
+                            <span class="text-xs text-slate-400">Đã tải ảnh lên Imgbb!</span>
+                        </div>
+                    </div>
+
+                    <p id="edit-product-feedback" class="text-xs mt-1 h-4 text-red-400"></p>
+                    
+                    <div class="flex gap-4 mt-2">
+                        <button type="button" id="cancel-edit-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors border border-slate-600">Hủy</button>
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors shadow-lg shadow-cyan-500/20">Lưu Thay Đổi</button>
                     </div>
                 </form>
             </div>
@@ -460,6 +491,11 @@
                                         <label for="setting-profit-margin" class="text-sm text-slate-400">Lợi nhuận mong muốn (%)</label>
                                         <input type="number" id="setting-profit-margin" placeholder="VD: 30" min="0" class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
                                     </div>
+                                </div>
+                                <div>
+                                    <label for="setting-imgbb-key" class="text-sm text-slate-400">API Key ImgBB (Tải ảnh miễn phí)</label>
+                                    <input type="text" id="setting-imgbb-key" placeholder="Nhập API Key ImgBB..." class="w-full mt-1 bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    <p class="text-[11px] text-slate-400 mt-1">Lấy key miễn phí tại <a href="https://api.imgbb.com/" target="_blank" class="text-cyan-400 hover:underline">api.imgbb.com</a>. Nếu không có key, hệ thống sẽ sử dụng key mặc định.</p>
                                 </div>
                                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">Lưu Thiết Lập</button>
                                 <p id="settings-feedback" class="text-sm text-center h-5"></p>

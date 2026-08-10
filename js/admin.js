@@ -174,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 businessConfig = doc.data();
                 document.getElementById('setting-fixed-cost').value = businessConfig.fixedCost || '';
                 document.getElementById('setting-profit-margin').value = businessConfig.profitMargin || '';
+                document.getElementById('setting-imgbb-key').value = businessConfig.imgbbApiKey || '';
             }
             updateStats();
             calculateSuggestedPrice();
@@ -1156,6 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newConfig = {
             fixedCost: Number(document.getElementById('setting-fixed-cost').value) || 0,
             profitMargin: Number(document.getElementById('setting-profit-margin').value) || 0,
+            imgbbApiKey: document.getElementById('setting-imgbb-key').value.trim()
         };
         
         try {
@@ -1767,8 +1769,8 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('image', file);
 
             try {
-                // Upload lên Imgbb sử dụng API Key mặc định của chúng ta
-                const response = await fetch(`https://api.imgbb.com/1/upload?key=31d1d86dcf3519c72c21950d908ff95f`, {
+                const imgbbKey = businessConfig.imgbbApiKey || '31d1d86dcf3519c72c21950d908ff95f';
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
                     method: 'POST',
                     body: formData
                 });
