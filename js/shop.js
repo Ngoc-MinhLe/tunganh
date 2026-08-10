@@ -50,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let computedProducts = {}; // Bảng lưu thông tin chi tiết của SP sau khi tính giá/kho: { productId: { name, stock, price } }
 
     let cart = [];
+    let productsLoaded = false;
+    let inventoryLoaded = false;
+    let configLoaded = false;
+    let listenersStarted = false;
 
     // --- DOM Elements ---
     const shopLoader = document.getElementById('shop-loader');
@@ -84,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cartCount = document.getElementById('cart-count');
     const cartTotalPrice = document.getElementById('cart-total-price');
     const cartLoginPrompt = document.getElementById('cart-login-prompt');
+    const cartLoginBtn = document.getElementById('cart-login-btn');
     const checkoutForm = document.getElementById('checkout-form');
     
     const checkoutName = document.getElementById('checkout-name');
@@ -233,10 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cartDrawerOverlay.addEventListener('click', () => toggleCart(false));
 
     // --- Tải Sản Phẩm từ Firestore ---
-    let productsLoaded = false;
-    let inventoryLoaded = false;
-    let configLoaded = false;
-    let listenersStarted = false;
 
     function checkAllLoaded() {
         if (productsLoaded && inventoryLoaded && configLoaded) {

@@ -519,6 +519,34 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredProfitEl.classList.toggle('text-green-400', totalProfit >= 0);
     }
 
+    function updateStats() {
+        const filter = statsFilterValue;
+        let filteredSales = sales;
+
+        if (filter !== 'all' && filter) {
+            const [year, month] = filter.split('-').map(Number);
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0);
+            endDate.setHours(23, 59, 59, 999);
+            filteredSales = sales.filter(s => {
+                const saleDate = s.saleDate.toDate();
+                return saleDate >= startDate && saleDate <= endDate;
+            });
+        }
+        
+        renderStats(filteredSales, filter);
+        renderDailyProfit(filteredSales);
+        renderChart(filteredSales);
+
+        const totalProfit = filteredSales.reduce((sum, sale) => sum + sale.profit, 0);
+        const filteredProfitEl = document.getElementById('filtered-profit-display');
+        if (filteredProfitEl) {
+            filteredProfitEl.textContent = formatCurrency(totalProfit);
+            filteredProfitEl.classList.toggle('text-red-400', totalProfit < 0);
+            filteredProfitEl.classList.toggle('text-green-400', totalProfit >= 0);
+        }
+    }
+
     function renderAll() {
         renderProductList();
         renderProductSelects();
