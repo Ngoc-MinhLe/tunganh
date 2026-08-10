@@ -72,15 +72,14 @@
                         <label class="text-xs text-slate-400">Hình ảnh sản phẩm</label>
                         <div class="flex gap-2 mt-1">
                             <input type="text" id="edit-product-image-url" placeholder="Nhập URL ảnh hoặc nhấn nút tải lên..." class="flex-grow bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm">
-                            <button type="button" id="edit-product-image-upload-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
-                                <i data-lucide="image-plus" class="w-3.5 h-3.5"></i> Tải Lên
-                            </button>
-                            <input type="file" id="edit-product-image-file" class="hidden" accept="image/*">
+                            <a href="https://postimages.org/" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
+                                <i data-lucide="link" class="w-3.5 h-3.5"></i> Lấy link ảnh
+                            </a>
                         </div>
                         <!-- Xem trước ảnh -->
                         <div id="edit-product-image-preview-container" class="mt-2 hidden flex items-center gap-2">
                             <img id="edit-product-image-preview" src="" alt="Preview" class="w-12 h-12 object-cover rounded border border-slate-600">
-                            <span class="text-xs text-slate-400">Đã tải ảnh lên Imgbb!</span>
+                            <span class="text-xs text-slate-400">Xem trước ảnh.</span>
                         </div>
                     </div>
 
@@ -358,15 +357,14 @@
                                             <label class="text-xs text-slate-400">Hình ảnh sản phẩm</label>
                                             <div class="flex gap-2 mt-1">
                                                 <input type="text" id="product-image-url" placeholder="Nhập URL ảnh hoặc nhấn nút tải lên..." class="flex-grow bg-slate-700 text-white p-2.5 rounded-lg border border-slate-600 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-sm">
-                                                <button type="button" id="product-image-upload-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
-                                                    <i data-lucide="image-plus" class="w-3.5 h-3.5"></i> Chọn & Tải Ảnh
-                                                </button>
-                                                <input type="file" id="product-image-file" class="hidden" accept="image/*">
+                                                <a href="https://postimages.org/" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 transition-colors whitespace-nowrap">
+                                                    <i data-lucide="link" class="w-3.5 h-3.5"></i> Lấy link ảnh
+                                                </a>
                                             </div>
                                             <!-- Xem trước ảnh -->
                                             <div id="product-image-preview-container" class="mt-2 hidden flex items-center gap-2">
                                                 <img id="product-image-preview" src="" alt="Preview" class="w-12 h-12 object-cover rounded border border-slate-600">
-                                                <span class="text-xs text-slate-400">Đã tải ảnh lên Imgbb!</span>
+                                                <span class="text-xs text-slate-400">Xem trước ảnh.</span>
                                             </div>
                                         </div>
                                         <div class="flex justify-end">
