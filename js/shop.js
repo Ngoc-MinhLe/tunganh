@@ -4,7 +4,8 @@ import {
     signInWithPopup, 
     GoogleAuthProvider, 
     signOut, 
-    onAuthStateChanged 
+    onAuthStateChanged,
+    signInAnonymously
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { 
     getFirestore, 
@@ -96,41 +97,52 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
-            // Hiển thị Avatar và thông tin đăng nhập
-            customerAvatar.src = user.photoURL || 'https://lh3.googleusercontent.com/a/default-user=s80-c';
-            googleLoginBtn.classList.add('hidden');
-            customerInfo.classList.remove('hidden');
-            
-            cartLoginPrompt.classList.add('hidden');
-            checkoutForm.classList.remove('hidden');
-            checkoutName.value = user.displayName || '';
+            if (!user.isAnonymous) {
+                // Đã đăng nhập bằng Google
+                customerAvatar.src = user.photoURL || 'https://lh3.googleusercontent.com/a/default-user=s80-c';
+                googleLoginBtn.classList.add('hidden');
+                customerInfo.classList.remove('hidden');
+                
+                cartLoginPrompt.classList.add('hidden');
+                checkoutForm.classList.remove('hidden');
+                checkoutName.value = user.displayName || '';
 
-            // Tải thông tin cá nhân khách hàng (địa chỉ, sđt) từ Firestore
-            const profileRef = doc(db, `stores/${storeId}/customers`, user.uid);
-            const profileSnap = await getDoc(profileRef);
-            if (profileSnap.exists()) {
-                customerProfile = profileSnap.data();
-                checkoutPhone.value = customerProfile.phone || '';
-                checkoutAddress.value = customerProfile.address || '';
-                profilePhone.value = customerProfile.phone || '';
-                profileAddress.value = customerProfile.address || '';
+                // Tải thông tin cá nhân khách hàng (địa chỉ, sđt) từ Firestore
+                const profileRef = doc(db, `stores/${storeId}/customers`, user.uid);
+                const profileSnap = await getDoc(profileRef);
+                if (profileSnap.exists()) {
+                    customerProfile = profileSnap.data();
+                    checkoutPhone.value = customerProfile.phone || '';
+                    checkoutAddress.value = customerProfile.address || '';
+                    profilePhone.value = customerProfile.phone || '';
+                    profileAddress.value = customerProfile.address || '';
+                } else {
+                    customerProfile = { phone: "", address: "" };
+                }
             } else {
-                customerProfile = { phone: "", address: "" };
+                // Đăng nhập ẩn danh (khách vãng lai chưa log Google)
+                currentUser = null; // Coi như chưa đăng nhập để xử lý giao diện
+                googleLoginBtn.classList.remove('hidden');
+                customerInfo.classList.add('hidden');
+                
+                cartLoginPrompt.classList.remove('hidden');
+                checkoutForm.classList.add('hidden');
+                
+                checkoutName.value = '';
+                checkoutPhone.value = '';
+                checkoutAddress.value = '';
+                profilePhone.value = '';
+                profileAddress.value = '';
             }
+            
+            // Bắt đầu đăng ký lắng nghe dữ liệu khi đã xác thực xong (ẩn danh hoặc Google)
+            startListeningFirestore();
         } else {
-            currentUser = null;
-            customerProfile = { phone: "", address: "" };
-            googleLoginBtn.classList.remove('hidden');
-            customerInfo.classList.add('hidden');
-            
-            cartLoginPrompt.classList.remove('hidden');
-            checkoutForm.classList.add('hidden');
-            
-            checkoutName.value = '';
-            checkoutPhone.value = '';
-            checkoutAddress.value = '';
-            profilePhone.value = '';
-            profileAddress.value = '';
+            // Tự động đăng nhập ẩn danh khi chưa có phiên đăng nhập nào
+            signInAnonymously(auth).catch(err => {
+                console.error("Lỗi đăng nhập ẩn danh:", err);
+                shopLoader.innerHTML = `<p class="text-red-500 font-bold">Không thể kết nối cơ sở dữ liệu. Vui lòng kiểm tra cấu hình Firebase hoặc rules.</p>`;
+            });
         }
         updateCartDisplay();
     });
@@ -155,6 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         signOut(auth).then(() => {
             cart = [];
             updateCartDisplay();
+            // Load lại trang để khởi tạo lại session ẩn danh sạch
+            window.location.reload();
         });
     });
 
@@ -169,18 +183,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lưu thông tin hồ sơ
     profileForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!currentUser) return;
+        const user = auth.currentUser;
+        if (!user || user.isAnonymous) return;
 
         customerProfile = {
-            name: currentUser.displayName,
-            email: currentUser.email,
+            name: user.displayName,
+            email: user.email,
             phone: profilePhone.value.trim(),
             address: profileAddress.value.trim(),
             updatedAt: Timestamp.now()
         };
 
         try {
-            const profileRef = doc(db, `stores/${storeId}/customers`, currentUser.uid);
+            const profileRef = doc(db, `stores/${storeId}/customers`, user.uid);
             await setDoc(profileRef, customerProfile, { merge: true });
             
             // Cập nhật lại form checkout
@@ -221,6 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let productsLoaded = false;
     let inventoryLoaded = false;
     let configLoaded = false;
+    let listenersStarted = false;
 
     function checkAllLoaded() {
         if (productsLoaded && inventoryLoaded && configLoaded) {
@@ -230,28 +246,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 1. Lắng nghe products
-    onSnapshot(collection(db, `stores/${storeId}/products`), (snapshot) => {
-        products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        productsLoaded = true;
-        checkAllLoaded();
-    }, (error) => console.error("Lỗi lắng nghe products:", error));
+    function startListeningFirestore() {
+        if (listenersStarted) return;
+        listenersStarted = true;
 
-    // 2. Lắng nghe inventoryBatches
-    onSnapshot(collection(db, `stores/${storeId}/inventoryBatches`), (snapshot) => {
-        inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        inventoryLoaded = true;
-        checkAllLoaded();
-    }, (error) => console.error("Lỗi lắng nghe inventory:", error));
+        // 1. Lắng nghe products
+        onSnapshot(collection(db, `stores/${storeId}/products`), (snapshot) => {
+            products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            productsLoaded = true;
+            checkAllLoaded();
+        }, (error) => {
+            console.error("Lỗi lắng nghe products:", error);
+            shopLoader.innerHTML = `<p class="text-red-500 font-bold">Lỗi truy cập dữ liệu (Permission Denied). Vui lòng cấu hình Firestore rules.</p>`;
+        });
 
-    // 3. Lắng nghe config
-    onSnapshot(doc(db, `stores/${storeId}/config/business`), (snapshot) => {
-        if (snapshot.exists()) {
-            businessConfig = snapshot.data();
-        }
-        configLoaded = true;
-        checkAllLoaded();
-    }, (error) => console.error("Lỗi cấu hình business:", error));
+        // 2. Lắng nghe inventoryBatches
+        onSnapshot(collection(db, `stores/${storeId}/inventoryBatches`), (snapshot) => {
+            inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            inventoryLoaded = true;
+            checkAllLoaded();
+        }, (error) => console.error("Lỗi lắng nghe inventory:", error));
+
+        // 3. Lắng nghe config
+        onSnapshot(doc(db, `stores/${storeId}/config/business`), (snapshot) => {
+            if (snapshot.exists()) {
+                businessConfig = snapshot.data();
+            }
+            configLoaded = true;
+            checkAllLoaded();
+        }, (error) => console.error("Lỗi cấu hình business:", error));
+    }
 
     // Tính giá bán lẻ & tổng số lượng tồn kho từng SP
     function computeStorefrontProducts() {
