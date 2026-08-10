@@ -231,10 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAll(); 
         }, (error) => console.error("Lỗi lắng nghe categories:", error));
 
-        // Khởi tạo upload ảnh
-        setupImageUpload('product-image-file', 'product-image-upload-btn', 'product-image-url', 'product-image-preview-container', 'product-image-preview');
-        setupImageUpload('edit-product-image-file', 'edit-product-image-upload-btn', 'edit-product-image-url', 'edit-product-image-preview-container', 'edit-product-image-preview');
-
         // Sự kiện thêm danh mục mới
         document.getElementById('add-category-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1738,63 +1734,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-        });
-    }
-
-    function setupImageUpload(fileInputId, buttonId, urlInputId, previewContainerId, previewImgId) {
-        const fileInput = document.getElementById(fileInputId);
-        const button = document.getElementById(buttonId);
-        const urlInput = document.getElementById(urlInputId);
-        const previewContainer = document.getElementById(previewContainerId);
-        const previewImg = document.getElementById(previewImgId);
-
-        if (!fileInput || !button) return;
-
-        button.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (!file.type.startsWith('image/')) {
-                alert("Vui lòng chọn tệp tin hình ảnh!");
-                return;
-            }
-
-            const originalBtnHtml = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 text-white inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang tải...`;
-
-            const formData = new FormData();
-            formData.append('image', file);
-
-            try {
-                const imgbbKey = businessConfig.imgbbApiKey || '31d1d86dcf3519c72c21950d908ff95f';
-                const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error("Upload thất bại!");
-
-                const result = await response.json();
-                if (result.success) {
-                    const imageUrl = result.data.url;
-                    urlInput.value = imageUrl;
-                    
-                    if (previewImg) previewImg.src = imageUrl;
-                    if (previewContainer) previewContainer.classList.remove('hidden');
-                } else {
-                    throw new Error(result.error?.message || "Lỗi tải ảnh!");
-                }
-            } catch (err) {
-                console.error("Lỗi khi tải ảnh lên Imgbb:", err);
-                alert("Không thể tải ảnh lên Imgbb: " + err.message);
-            } finally {
-                button.disabled = false;
-                button.innerHTML = originalBtnHtml;
-                fileInput.value = '';
-            }
         });
     }
 
